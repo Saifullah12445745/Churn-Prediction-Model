@@ -1,0 +1,27 @@
+# Virtual environment
+venv/
+.venv/
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Model and data files
+*.pkl
+*.sav
+*.h5
+*.json
+*.csv
+*.xlsx
+
+# Environment variables
+.env
+
+# Streamlit and logs
+.streamlit/
+logs/
