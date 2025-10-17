@@ -1,4 +1,5 @@
-# app.py
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import streamlit as st
 import pandas as pd
@@ -8,13 +9,14 @@ import json
 import os
 
 # ================================
-# 🔧 PATHS
+# 🔧 PATH CONFIGURATION
 # ================================
-MODEL_PATH = os.path.join("model_assets", "xgb_churn_model.pkl")
-TRAIN_COLS_PATH = os.path.join("model_assets", "training_columns.json")  # optional
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "model_assets", "xgb_churn_model.pkl")
+TRAIN_COLS_PATH = os.path.join(BASE_DIR, "model_assets", "training_columns.json")
 
 # ================================
-# ⚙️ PAGE CONFIGURATION
+# ⚙️ STREAMLIT PAGE SETTINGS
 # ================================
 st.set_page_config(page_title="🎓 LMS Churn Prediction Dashboard", layout="wide")
 
@@ -23,11 +25,15 @@ st.set_page_config(page_title="🎓 LMS Churn Prediction Dashboard", layout="wid
 # ================================
 @st.cache_resource
 def load_model():
-    model = joblib.load(MODEL_PATH)
-    return model
+    if not os.path.exists(MODEL_PATH):
+        st.error(f"❌ Model file not found at {MODEL_PATH}")
+        st.stop()
+    return joblib.load(MODEL_PATH)
+
+model = load_model()
 
 # ================================
-# 🧹 PREPROCESSING FUNCTIONS
+# 🧹 DATA PREPROCESSING
 # ================================
 def clean_column_names(df):
     df.columns = df.columns.str.replace('\n', ' ', regex=True).str.strip()
@@ -36,7 +42,6 @@ def clean_column_names(df):
 def basic_preprocessing(df):
     df = clean_column_names(df)
 
-    # Drop unnecessary columns
     drop_cols = [
         'S.No.', 'Student-Id', 'Date_registered',
         'Course duration start date', 'Date of submission'
@@ -45,13 +50,13 @@ def basic_preprocessing(df):
         if c in df.columns:
             df = df.drop(columns=[c])
 
-    # Handle missing features (days_between, completion_ratio)
+    # Add missing engineered columns
     if 'days_between' not in df.columns:
         df['days_between'] = 0
     if 'completion_ratio' not in df.columns:
         df['completion_ratio'] = 0.0
 
-    # Convert numeric-looking columns
+    # Convert columns to numeric if possible
     for col in df.columns:
         if df[col].dtype == 'object':
             df[col] = pd.to_numeric(df[col], errors='ignore')
@@ -63,7 +68,6 @@ def align_with_training(df):
     if os.path.exists(TRAIN_COLS_PATH):
         with open(TRAIN_COLS_PATH, 'r') as f:
             train_cols = json.load(f)
-
         for c in train_cols:
             if c not in df.columns:
                 df[c] = 0
@@ -89,17 +93,15 @@ def predict(df, model):
 # 🖥️ STREAMLIT UI
 # ================================
 st.title("📊 LMS Churn Prediction Dashboard")
-st.markdown("Upload a CSV of students and predict who is likely to **churn** (drop out).")
+st.markdown("Upload a CSV of students to predict who is likely to **churn** (drop out).")
 
 uploaded_file = st.file_uploader("📤 Upload CSV file", type=["csv"])
-model = load_model()
 
 if uploaded_file is not None:
     raw = pd.read_csv(uploaded_file)
     st.subheader("🔍 Uploaded Data Preview")
     st.dataframe(raw.head())
 
-    # Process data
     df_proc = basic_preprocessing(raw.copy())
     X = align_with_training(df_proc)
 
